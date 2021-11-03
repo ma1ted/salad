@@ -1,46 +1,81 @@
-fn alphabet(start: &u8, end: &u8) -> Vec<char> {
-    let mut alphabet: Vec<char> = Vec::new();
-    for i in *start..*end {
-        let i_char: char = char::from_u32(i as u32).unwrap();
-        alphabet.push(i_char);
-    }
-    alphabet
-}
+mod salad;
+use structopt::StructOpt;
+use std::path::PathBuf;
+use std::fs;
 
-fn encrypt(encrypt: bool) -> String {
-    let ascii_start: u8 = 32;
-    let ascii_end: u8 = 127;
-    let cleartext = "uif!rvjdl!cspxo!gpy!kvnqt!pwfs!uif!mb{z!eph\"";
-    let shift = 1;
+#[derive(Debug, StructOpt)]
+#[structopt(name = "Salad", about = "Ceasar cipher encoder and decoder")]
+struct Cli {
+    /// The input text
+    #[structopt(parse(from_os_str))]
+    input: PathBuf,
 
-    let alphabet: Vec<char> = alphabet(&ascii_start, &ascii_end);
-    let alphabet_len: i32 = alphabet.len() as i32;
+    /// Decode an encrypted cipher
+    #[structopt(short, long)]
+    decrypt: bool,
 
-    let mut cyphertext = String::new();
-    for c in cleartext.chars() {
-        if !alphabet.contains(&c) {
-            panic!("All cleartext input characters' decimal ASCII values must be within the alphabet ranges supplied");
-        }
-        let index: i32 = alphabet.iter().position(|&r| r == c).unwrap() as i32;
+    /// Number of times to shift each character along
+    #[structopt(short, long)]
+    shift: i32,
 
-        if encrypt {
-            let mut index_new = index + shift;
-            while index_new > alphabet_len - 1 {
-                index_new -= alphabet_len;
-            }
-            cyphertext.push(alphabet[index_new as usize]);
-        } else {
-            let mut index_new = index - shift;
-            while index_new < 0 {
-                index_new += alphabet_len;
-            }
-            cyphertext.push(alphabet[index_new as usize]);
-        }
-    }
-    cyphertext
+    /// Preserve whitespace
+    #[structopt(short, long="preserve")]
+    preserve_whitespace: bool,
+
+    /// Use the extended characterset (32 - 123)
+    #[structopt(short, long="extended")]
+    extended: bool,
+
+    /// Output file, stdout if not present
+    #[structopt(short, long, parse(from_os_str))]
+    output: Option<PathBuf>
 }
 
 fn main() {
-    let result = encrypt(false);
-    println!("{}", result);
+    let args = Cli::from_args();
+    // println!("{:#?}", args);
+
+    let content: String;
+    if args.input.exists() {
+        content = fs::read_to_string(&args.input).unwrap();
+    } else {
+        content =  args.input.into_os_string().into_string().unwrap();
+    }
+
+    let res: String;
+    if args.decrypt {
+        if args.extended {
+            res = salad::decrypt_extended(&content, args.shift, args.preserve_whitespace); 
+        } else {
+            res = salad::decrypt(&content, args.shift, args.preserve_whitespace);
+        }
+    } else {
+        if args.extended {
+            res = salad::encrypt_extended(&content, args.shift, args.preserve_whitespace);
+        } else {
+            res = salad::encrypt(&content, args.shift, args.preserve_whitespace);
+        }
+    }
+
+    if args.output != None {
+        fs::write(args.output.unwrap(), res).unwrap();
+    } else {
+        println!("{}", res);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add() {
+        let original = "abcdefghijklmnopqrstuvwxyz";
+        let shift = 10;
+
+        let cyphertext = salad::encrypt(original, shift, false);
+        let cleartext = salad::decrypt(&cyphertext, shift, false);
+
+        assert_eq!(original, cleartext);
+    }
 }
