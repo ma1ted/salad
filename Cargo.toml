@@ -1,0 +1,7 @@
+[package]
+name = "salad"
+version = "1.0.0"
+authors = ["ma1ted"]
+edition = "2018"
+
+[dependencies]
