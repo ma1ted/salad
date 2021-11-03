@@ -5,3 +5,4 @@ authors = ["ma1ted"]
 edition = "2018"
 
 [dependencies]
+structopt = "0.3.23"
